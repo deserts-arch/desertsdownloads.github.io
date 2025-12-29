@@ -158,7 +158,8 @@
 <body>
     <div class="header">
         <h1>🌵 Desert Downloads 🌵</h1>
-        <a href="https://www.youtube.com/@DesertDownloads" target="_blank" class="youtube-link">📺 YouTube Channel</a>
+        <!-- CORRECTED YOUTUBE LINK -->
+        <a href="https://www.youtube.com/@downloadsdeserts" target="_blank" class="youtube-link">📺 YouTube Channel</a>
         <div class="admin-access" onclick="openAdmin()" title="Admin Login">
             <svg viewBox="0 0 24 24" fill="white" width="24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
         </div>
@@ -191,21 +192,13 @@
     </div>
 
     <script type="module">
-        // ======== YOUR FIREBASE CONFIG (Auto-populated) ========
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js";
-        import { getStorage, ref, uploadBytes, getDownloadURL, listAll, deleteObject } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-storage.js";
+        // ======== YOUR SUPABASE CONFIG (Auto-populated) ========
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyB_BhcoCgmiIj_IHREYeDI4xecQKvLf2uM",
-            authDomain: "desert-downloads.firebaseapp.com",
-            projectId: "desert-downloads",
-            storageBucket: "desert-downloads.firebasestorage.app",
-            messagingSenderId: "733429999978",
-            appId: "1:733429999978:web:acfcfbd8c4cd6264485d13"
-        };
+        const SUPABASE_URL = "https://pgtxtfcehqxygwbloiov.supabase.co";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBndHh0ZmNlaHF4eWd3YmxvaW92Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcwMDM4NDIsImV4cCI6MjA4MjU3OTg0Mn0.2nIuJ3sK98QmFVwl417DWAdAi5KWuPur5WLSn5XlZHo";
         
-        const app = initializeApp(firebaseConfig);
-        const storage = getStorage(app);
+        const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
         // =====================================================
 
         const ADMIN_PASSWORD = "desert123"; // CHANGE THIS PASSWORD!
@@ -228,36 +221,36 @@
         async function loadFiles() {
             const filesList = document.getElementById('filesList');
             try {
-                const listRef = ref(storage);
-                const res = await listAll(listRef);
+                const { data: files, error } = await supabase.storage.from('files').list();
                 
-                if(res.items.length === 0) {
+                if(error) throw error;
+                if(files.length === 0) {
                     filesList.innerHTML = '<p style="text-align:center;color:#999;">No files available yet.</p>';
                     return;
                 }
 
-                const filePromises = res.items.map(async itemRef => {
-                    const url = await getDownloadURL(itemRef);
-                    const metadata = await itemRef.getMetadata();
-                    return `
-                        <div class="file-item">
-                            <div>
-                                <div style="font-weight:bold">${getFileIcon(metadata.contentType)} ${itemRef.name}</div>
-                                <div style="font-size:0.9em;color:#666">${(metadata.size/1024/1024).toFixed(2)} MB</div>
-                            </div>
-                            <div>
-                                <a href="${url}" download class="download-btn">⬇ Download</a>
-                                ${isAdmin ? `<button onclick="deleteFile('${itemRef.name}')" style="background:red;color:white;padding:8px 15px;border:none;border-radius:20px;margin-left:10px;cursor:pointer;">🗑️</button>` : ''}
-                            </div>
+                const fileHTML = files.map(file => `
+                    <div class="file-item">
+                        <div>
+                            <div style="font-weight:bold">${getFileIcon(file.metadata?.mimetype)} ${file.name}</div>
+                            <div style="font-size:0.9em;color:#666">${(file.metadata?.size/1024/1024).toFixed(2)} MB</div>
                         </div>
-                    `;
-                });
-
-                const files = await Promise.all(filePromises);
-                filesList.innerHTML = files.join('');
+                        <div>
+                            <button onclick="downloadFile('${file.name}')" class="download-btn">⬇ Download</button>
+                            ${isAdmin ? `<button onclick="deleteFile('${file.name}')" style="background:red;color:white;padding:8px 15px;border:none;border-radius:20px;margin-left:10px;cursor:pointer;">🗑️</button>` : ''}
+                        </div>
+                    </div>
+                `).join('');
+                
+                filesList.innerHTML = fileHTML;
             } catch(e) {
-                filesList.innerHTML = '<p style="text-align:center;color:red;">Error loading files. Check Firebase config.</p>';
+                filesList.innerHTML = '<p style="text-align:center;color:red;">Error loading files. Check Supabase config.</p>';
             }
+        }
+
+        async function downloadFile(filename) {
+            const { data } = await supabase.storage.from('files').getPublicUrl(filename);
+            window.open(data.publicUrl, '_blank');
         }
 
         async function uploadFile(file) {
@@ -265,8 +258,8 @@
             status.innerHTML = '⏳ Uploading...';
             
             try {
-                const storageRef = ref(storage, file.name);
-                await uploadBytes(storageRef, file);
+                const { error } = await supabase.storage.from('files').upload(file.name, file);
+                if(error) throw error;
                 status.innerHTML = '✅ File uploaded!';
                 loadFiles();
                 setTimeout(() => status.innerHTML = '', 3000);
@@ -277,8 +270,7 @@
 
         async function deleteFile(filename) {
             if(confirm(`Delete ${filename}?`)) {
-                const fileRef = ref(storage, filename);
-                await deleteObject(fileRef);
+                await supabase.storage.from('files').remove([filename]);
                 loadFiles();
             }
         }
