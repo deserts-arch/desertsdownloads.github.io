@@ -122,6 +122,18 @@
             padding: 10px 20px;
             border-radius: 25px;
             text-decoration: none;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .delete-btn {
+            background: red;
+            color: white;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 20px;
+            margin-left: 10px;
+            cursor: pointer;
         }
     </style>
 </head>
@@ -129,7 +141,6 @@
     <div class="header">
         <h1>🌵 Desert Downloads 🌵</h1>
         <a href="https://www.youtube.com/@downloadsdeserts" target="_blank" class="youtube-link">📺 YouTube Channel</a>
-        <!-- FIXED: Added ID for event listener -->
         <div class="admin-access" id="adminBtn" title="Admin Login">
             <svg viewBox="0 0 24 24" fill="white" width="24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
         </div>
@@ -139,7 +150,6 @@
         <div class="modal-content">
             <h3>🔐 Admin Access</h3>
             <input type="password" id="passwordInput" placeholder="Enter password">
-            <!-- FIXED: Added ID for event listener -->
             <button id="loginBtn">Login</button>
             <button id="cancelBtn" style="background: #999;">Cancel</button>
         </div>
@@ -154,6 +164,7 @@
             </div>
             <input type="file" id="fileInput" multiple>
             <div id="uploadStatus"></div>
+            <div id="errorDebug" style="background:#fee;color:#c00;padding:10px;margin:10px 0;border-radius:5px;font-family:monospace;display:none;"></div>
         </div>
 
         <div class="download-section">
@@ -201,32 +212,56 @@
                 }
 
                 const fileHTML = files.map(file => `
-                    <div class="file-item">
+                    <div class="file-item" data-filename="${file.name}">
                         <div>
                             <div style="font-weight:bold">${getFileIcon(file.metadata?.mimetype)} ${file.name}</div>
                             <div style="font-size:0.9em;color:#666">${(file.metadata?.size/1024/1024).toFixed(2)} MB</div>
                         </div>
                         <div>
-                            <button onclick="downloadFile('${file.name}')" class="download-btn">⬇ Download</button>
-                            ${isAdmin ? `<button onclick="deleteFile('${file.name}')" style="background:red;color:white;padding:8px 15px;border:none;border-radius:20px;margin-left:10px;cursor:pointer;">🗑️</button>` : ''}
+                            <button class="download-btn">⬇ Download</button>
+                            ${isAdmin ? `<button class="delete-btn">🗑️</button>` : ''}
                         </div>
                     </div>
                 `).join('');
                 
                 filesList.innerHTML = fileHTML;
             } catch(e) {
-                filesList.innerHTML = '<p style="text-align:center;color:red;">Error loading files. Check Supabase config.</p>';
+                filesList.innerHTML = `<p style="text-align:center;color:red;">Error: ${e.message}</p>`;
             }
         }
 
         async function downloadFile(filename) {
-            const { data } = await supabase.storage.from('files').getPublicUrl(filename);
-            window.open(data.publicUrl, '_blank');
+            try {
+                const { data, error } = await supabase.storage.from('files').getPublicUrl(filename);
+                
+                if(error) {
+                    console.error('❌ Download error:', error);
+                    alert(`Download failed: ${error.message}`);
+                    return;
+                }
+                
+                if(data?.publicUrl) {
+                    const link = document.createElement('a');
+                    link.href = data.publicUrl;
+                    link.download = filename;
+                    link.target = '_blank';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                } else {
+                    alert('File URL not generated. Check bucket permissions.');
+                }
+            } catch(e) {
+                console.error('💥 Download exception:', e);
+                alert(`Download error: ${e.message}`);
+            }
         }
 
         async function uploadFile(file) {
             const status = document.getElementById('uploadStatus');
+            const errorDiv = document.getElementById('errorDebug');
             status.innerHTML = '⏳ Uploading...';
+            errorDiv.style.display = 'none';
             
             try {
                 const { error } = await supabase.storage.from('files').upload(file.name, file);
@@ -236,6 +271,9 @@
                 setTimeout(() => status.innerHTML = '', 3000);
             } catch(e) {
                 status.innerHTML = '❌ Upload failed!';
+                errorDiv.innerHTML = `<strong>Error:</strong> ${e.message}`;
+                errorDiv.style.display = 'block';
+                console.error('💥 Upload exception:', e);
             }
         }
 
@@ -253,7 +291,7 @@
             return '📎';
         }
 
-        // ===== EVENT LISTENERS (FIXED) =====
+        // ===== EVENT LISTENERS =====
         document.addEventListener('DOMContentLoaded', () => {
             // Admin button
             document.getElementById('adminBtn').addEventListener('click', openAdmin);
@@ -275,6 +313,20 @@
             // Close modal on outside click
             document.getElementById('passwordModal').addEventListener('click', (e) => {
                 if(e.target.id === 'passwordModal') closeAdmin();
+            });
+
+            // FIXED: Event delegation for download and delete buttons
+            document.getElementById('filesList').addEventListener('click', (e) => {
+                const fileItem = e.target.closest('.file-item');
+                if(!fileItem) return;
+                
+                const filename = fileItem.dataset.filename;
+                
+                if(e.target.classList.contains('download-btn')) {
+                    downloadFile(filename);
+                } else if(e.target.classList.contains('delete-btn')) {
+                    deleteFile(filename);
+                }
             });
             
             // Initial load
