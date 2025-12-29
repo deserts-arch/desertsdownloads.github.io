@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Desert Downloads - File Sharing Hub</title>
+    <title>Desert Downloads - Premium Files</title>
     <style>
         * {
             margin: 0;
@@ -18,18 +18,17 @@
             color: #3a2c1e;
         }
 
-        /* Header Section */
         .header {
             background: linear-gradient(90deg, #d4a017 0%, #b8860b 100%);
             color: white;
             padding: 20px;
             text-align: center;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            position: relative;
         }
 
         .header h1 {
             font-size: 2.5em;
-            margin-bottom: 10px;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
 
@@ -37,11 +36,11 @@
             display: inline-block;
             background: #FF0000;
             color: white;
-            padding: 10px 20px;
+            padding: 12px 25px;
             border-radius: 30px;
             text-decoration: none;
             font-weight: bold;
-            margin-top: 10px;
+            margin-top: 15px;
             transition: transform 0.3s;
         }
 
@@ -49,23 +48,84 @@
             transform: scale(1.05);
         }
 
-        /* Main Container */
-        .container {
-            max-width: 1200px;
-            margin: 30px auto;
-            padding: 20px;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
+        /* Hidden Admin Access */
+        .admin-access {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            opacity: 0.3;
+            transition: opacity 0.3s;
         }
 
-        /* Upload Section */
+        .admin-access:hover {
+            opacity: 1;
+        }
+
+        /* Password Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            text-align: center;
+            max-width: 400px;
+        }
+
+        .modal-content input {
+            width: 100%;
+            padding: 12px;
+            margin: 15px 0;
+            border: 2px solid #d4a017;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        .modal-content button {
+            background: #d4a017;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        /* Main Container */
+        .container {
+            max-width: 1000px;
+            margin: 30px auto;
+            padding: 20px;
+        }
+
+        /* Upload Section - Hidden by default */
         .upload-section {
+            display: none;
             background: white;
             padding: 30px;
             border-radius: 15px;
             box-shadow: 0 8px 16px rgba(0,0,0,0.1);
-            border: 2px solid #d4a017;
+            border: 3px solid #d4a017;
+            margin-bottom: 30px;
+        }
+
+        .upload-section.active {
+            display: block;
         }
 
         .upload-area {
@@ -74,32 +134,20 @@
             padding: 40px;
             text-align: center;
             background: #fff9e6;
-            transition: all 0.3s;
             cursor: pointer;
+            transition: all 0.3s;
         }
 
         .upload-area:hover {
             background: #fff3cd;
-            border-color: #b8860b;
-        }
-
-        .upload-area.dragover {
-            background: #ffe69c;
-            border-color: #b8860b;
         }
 
         #fileInput {
             display: none;
         }
 
-        .upload-icon {
-            font-size: 3em;
-            color: #d4a017;
-            margin-bottom: 15px;
-        }
-
-        /* Files List Section */
-        .files-section {
+        /* Download Section - Always visible */
+        .download-section {
             background: white;
             padding: 30px;
             border-radius: 15px;
@@ -158,21 +206,14 @@
 
         /* Responsive */
         @media (max-width: 768px) {
-            .container {
-                grid-template-columns: 1fr;
-            }
-            
             .header h1 {
                 font-size: 2em;
             }
-        }
-
-        .stats {
-            text-align: center;
-            margin-top: 20px;
-            padding: 15px;
-            background: rgba(255,255,255,0.3);
-            border-radius: 10px;
+            
+            .admin-access {
+                top: 10px;
+                right: 10px;
+            }
         }
     </style>
 </head>
@@ -183,80 +224,84 @@
         <a href="https://www.youtube.com/@DesertDownloads" target="_blank" class="youtube-link">
             📺 Visit Our YouTube Channel
         </a>
-        <div class="stats">
-            <span id="fileCount">0</span> files uploaded | 
-            <span id="totalSize">0</span> MB total
+        
+        <!-- Hidden admin access button -->
+        <div class="admin-access" onclick="openAdmin()">
+            <svg viewBox="0 0 24 24" fill="white">
+                <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
+            </svg>
+        </div>
+    </div>
+
+    <!-- Password Modal -->
+    <div class="modal" id="passwordModal">
+        <div class="modal-content">
+            <h3>🔐 Admin Access</h3>
+            <p>Enter password to upload files</p>
+            <input type="password" id="passwordInput" placeholder="Enter password">
+            <button onclick="checkPassword()">Access Upload</button>
+            <button onclick="closeAdmin()" style="background: #999; margin-left: 10px;">Cancel</button>
         </div>
     </div>
 
     <div class="container">
-        <!-- Upload Section -->
-        <div class="upload-section">
-            <h2>📤 Upload Files</h2>
+        <!-- Upload Section - Hidden from viewers -->
+        <div class="upload-section" id="uploadSection">
+            <h2>📤 Admin Upload</h2>
             <p style="margin-bottom: 20px; color: #7a6a51;">
-                Drag & drop files here or click to browse
+                Drop files here or click to browse
             </p>
             
-            <div class="upload-area" id="uploadArea">
-                <div class="upload-icon">📁</div>
-                <p><strong>Drop your files here</strong></p>
-                <p style="color: #7a6a51; font-size: 0.9em;">OR</p>
-                <button class="download-btn" onclick="document.getElementById('fileInput').click()">
-                    Choose Files
-                </button>
+            <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                <div style="font-size: 3em; margin-bottom: 15px;">📁</div>
+                <p><strong>Click to Upload Files</strong></p>
+                <p style="color: #7a6a51; font-size: 0.9em;">(Only visible to admin)</p>
             </div>
             
-            <input type="file" id="fileInput" multiple>
-            
-            <div id="uploadProgress" style="margin-top: 20px;"></div>
+            <input type="file" id="fileInput" multiple onchange="handleFiles(this.files)">
         </div>
 
-        <!-- Files List Section -->
-        <div class="files-section">
+        <!-- Download Section - Visible to everyone -->
+        <div class="download-section">
             <h2>📥 Available Downloads</h2>
             <p style="margin-bottom: 20px; color: #7a6a51;">
-                Your uploaded files appear here instantly
+                All files uploaded by Desert Downloads
             </p>
             
             <div id="filesList">
                 <p style="text-align: center; color: #999; padding: 40px;">
-                    No files uploaded yet. Add your first file!
+                    No files available yet. Check back soon!
                 </p>
             </div>
         </div>
     </div>
 
     <script>
-        // File storage (in-memory for demo)
+        // Simple password protection
+        const ADMIN_PASSWORD = "desert123"; // CHANGE THIS to your own password
+        
+        // File storage
         const uploadedFiles = [];
         
-        // DOM elements
-        const uploadArea = document.getElementById('uploadArea');
-        const fileInput = document.getElementById('fileInput');
-        const filesList = document.getElementById('filesList');
-        const fileCount = document.getElementById('fileCount');
-        const totalSize = document.getElementById('totalSize');
-
-        // Drag and drop handlers
-        uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadArea.classList.add('dragover');
-        });
-
-        uploadArea.addEventListener('dragleave', () => {
-            uploadArea.classList.remove('dragover');
-        });
-
-        uploadArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            uploadArea.classList.remove('dragover');
-            handleFiles(e.dataTransfer.files);
-        });
-
-        fileInput.addEventListener('change', (e) => {
-            handleFiles(e.target.files);
-        });
-
+        function openAdmin() {
+            document.getElementById('passwordModal').style.display = 'flex';
+        }
+        
+        function closeAdmin() {
+            document.getElementById('passwordModal').style.display = 'none';
+            document.getElementById('passwordInput').value = '';
+        }
+        
+        function checkPassword() {
+            const input = document.getElementById('passwordInput').value;
+            if (input === ADMIN_PASSWORD) {
+                document.getElementById('uploadSection').classList.add('active');
+                closeAdmin();
+            } else {
+                alert('❌ Incorrect password!');
+            }
+        }
+        
         // Handle file uploads
         function handleFiles(files) {
             Array.from(files).forEach(file => {
@@ -272,29 +317,27 @@
                 uploadedFiles.push(fileObj);
             });
             
-            updateFilesList();
-            updateStats();
-            
-            // Clear input
-            fileInput.value = '';
+            updateDownloadList();
         }
-
-        // Update files display
-        function updateFilesList() {
+        
+        // Update download list
+        function updateDownloadList() {
+            const filesList = document.getElementById('filesList');
+            
             if (uploadedFiles.length === 0) {
                 filesList.innerHTML = `
                     <p style="text-align: center; color: #999; padding: 40px;">
-                        No files uploaded yet. Add your first file!
+                        No files available yet. Check back soon!
                     </p>
                 `;
                 return;
             }
-
+            
             filesList.innerHTML = uploadedFiles.map(file => `
                 <div class="file-item">
                     <div class="file-info">
                         <div class="file-name">${getFileIcon(file.type)} ${file.name}</div>
-                        <div class="file-size">${file.size} MB • Uploaded: ${file.uploadDate}</div>
+                        <div class="file-size">${file.size} MB • Added: ${file.uploadDate}</div>
                     </div>
                     <a href="${file.data}" download="${file.name}" class="download-btn">
                         ⬇ Download
@@ -302,7 +345,7 @@
                 </div>
             `).join('');
         }
-
+        
         // File type icons
         function getFileIcon(type) {
             if (type.startsWith('image/')) return '🖼️';
@@ -313,18 +356,14 @@
             if (type.includes('excel') || type.includes('spreadsheet')) return '📊';
             return '📎';
         }
-
-        // Update statistics
-        function updateStats() {
-            fileCount.textContent = uploadedFiles.length;
-            const total = uploadedFiles.reduce((sum, file) => sum + parseFloat(file.size), 0);
-            totalSize.textContent = total.toFixed(2);
+        
+        // Close modal on outside click
+        window.onclick = function(event) {
+            const modal = document.getElementById('passwordModal');
+            if (event.target === modal) {
+                closeAdmin();
+            }
         }
-
-        // Simulate some existing files (optional)
-        window.addEventListener('load', () => {
-            // You can pre-load demo files here if needed
-        });
     </script>
 </body>
 </html>
